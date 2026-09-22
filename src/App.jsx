@@ -180,7 +180,8 @@ function App() {
 
     return window.localStorage.getItem('tazama-session') === 'active'
   })
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
+  const [authMode, setAuthMode] = useState('login')
+  const [loginForm, setLoginForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
   const [loginError, setLoginError] = useState('')
 
   const selectedListing = useMemo(
@@ -254,6 +255,47 @@ function App() {
     window.localStorage.setItem('tazama-session', 'active')
   }
 
+  const handleCreateAccount = (event) => {
+    event.preventDefault()
+
+    const email = loginForm.email.trim().toLowerCase()
+    const emailIsValid = email.includes('@') && email.includes('.')
+    const nameIsValid = loginForm.name.trim().length >= 2
+    const passwordIsValid = loginForm.password.length >= 6
+
+    if (!nameIsValid) {
+      setLoginError('Enter your name to create an account.')
+      return
+    }
+
+    if (!emailIsValid) {
+      setLoginError('Use a valid email address.')
+      return
+    }
+
+    if (!passwordIsValid) {
+      setLoginError('Your password must have at least 6 characters.')
+      return
+    }
+
+    if (loginForm.password !== loginForm.confirmPassword) {
+      setLoginError('Your passwords do not match.')
+      return
+    }
+
+    const accounts = JSON.parse(window.localStorage.getItem('tazama-accounts') ?? '{}')
+    if (accounts[email]) {
+      setLoginError('An account with this email already exists. Sign in instead.')
+      return
+    }
+
+    accounts[email] = { name: loginForm.name.trim(), password: loginForm.password }
+    window.localStorage.setItem('tazama-accounts', JSON.stringify(accounts))
+    window.localStorage.setItem('tazama-session', 'active')
+    setLoginError('')
+    setIsLoggedIn(true)
+  }
+
   const submitInquiry = async () => {
     if (!legalAccepted) {
       setShowLegalModal(true)
@@ -297,9 +339,21 @@ function App() {
             </p>
           </div>
 
-          <form className="login-card" onSubmit={handleLogin}>
-            <p className="eyebrow login-eyebrow">WELCOME BACK</p>
-            <h2>Sign in to Tazama</h2>
+          <form className="login-card" onSubmit={authMode === 'login' ? handleLogin : handleCreateAccount}>
+            <p className="eyebrow login-eyebrow">{authMode === 'login' ? 'WELCOME BACK' : 'JOIN TAZAMA'}</p>
+            <h2>{authMode === 'login' ? 'Sign in to Tazama' : 'Create your account'}</h2>
+
+            {authMode === 'register' && (
+              <label className="login-field">
+                Your name
+                <input
+                  type="text"
+                  value={loginForm.name}
+                  onChange={(event) => setLoginForm((current) => ({ ...current, name: event.target.value }))}
+                  placeholder="Amina N."
+                />
+              </label>
+            )}
 
             <label className="login-field">
               Email address
@@ -321,15 +375,36 @@ function App() {
               />
             </label>
 
+            {authMode === 'register' && (
+              <label className="login-field">
+                Confirm password
+                <input
+                  type="password"
+                  value={loginForm.confirmPassword}
+                  onChange={(event) => setLoginForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                  placeholder="••••••••"
+                />
+              </label>
+            )}
+
             {loginError && <div className="login-error">{loginError}</div>}
 
             <button type="submit" className="primary-button login-button">
-              Sign in <span>→</span>
+              {authMode === 'login' ? 'Sign in' : 'Create account'} <span>→</span>
             </button>
 
             <div className="login-meta">
-              <span>New to Tazama?</span>
-              <button type="button" className="text-link">Create an account</button>
+              <span>{authMode === 'login' ? 'New to Tazama?' : 'Already have an account?'}</span>
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => {
+                  setAuthMode((current) => (current === 'login' ? 'register' : 'login'))
+                  setLoginError('')
+                }}
+              >
+                {authMode === 'login' ? 'Create an account' : 'Sign in'}
+              </button>
             </div>
           </form>
         </div>
